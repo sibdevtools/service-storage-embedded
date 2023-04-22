@@ -28,7 +28,7 @@ public class ContentEntity {
     @ManyToOne(optional = false)
     @JoinColumn(name = "bucket_id")
     private BucketEntity bucket;
-    @OneToMany(mappedBy = "content_id", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "content", cascade = CascadeType.ALL)
     private List<ContentMetaEntity> meta;
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
