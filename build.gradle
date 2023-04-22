@@ -1,0 +1,103 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+    id 'maven-publish'
+    id "org.sonarqube" version "4.0.0.2929"
+}
+
+group = 'com.github.sibmaks'
+version = '0.0.1'
+sourceCompatibility = jdk_version
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-actuator-autoconfigure:${lib_springboot_version}"
+
+    implementation "org.springframework:spring-context:${lib_spring_version}"
+    implementation "org.springframework:spring-core:${lib_spring_version}"
+    implementation "org.springframework.data:spring-data-jpa:${lib_spring_data_version}"
+
+    implementation "org.flywaydb:flyway-core:${lib_flyway_core}"
+
+    implementation "com.fasterxml.jackson.core:jackson-databind:${lib_jackson_version}"
+
+    implementation "com.github.sibmaks:mad-storage-api:${lib_mad_storage_api_version}"
+    implementation "jakarta.annotation:jakarta.annotation-api:${lib_jakarta_annotation_version}"
+    implementation "jakarta.persistence:jakarta.persistence-api:${lib_jakarta_persistence_version}"
+
+    compileOnly "org.projectlombok:lombok:${lib_lombok_version}"
+
+    annotationProcessor "org.projectlombok:lombok:${lib_lombok_version}"
+
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${lib_junit_version}"
+    testImplementation "org.junit.jupiter:junit-jupiter-params:${lib_junit_version}"
+
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:${lib_junit_version}"
+
+    testImplementation "org.mockito:mockito-core:${lib_mockito_version}"
+}
+
+sonarqube {
+    properties {
+        property "sonar.projectKey", "sibmaks_mad-error-local"
+        property "sonar.organization", "sibmaks"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.java.source", "${jdk_version}"
+        property "sonar.java.target", "${jdk_version}"
+    }
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = "0.8.8"
+    reportsDirectory = layout.buildDirectory.dir('customJacocoReportDir')
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        csv.required = true
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/sibmaks/mad-error-local"
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+    publications {
+        gpr(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
+
+jar {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
