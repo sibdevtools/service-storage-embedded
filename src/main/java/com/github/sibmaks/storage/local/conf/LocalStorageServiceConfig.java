@@ -1,8 +1,6 @@
 package com.github.sibmaks.storage.local.conf;
 
-import com.github.sibmaks.storage.local.entity.BucketEntity;
-import com.github.sibmaks.storage.local.entity.ContentEntity;
-import com.github.sibmaks.storage.local.entity.ContentMetaEntity;
+import com.github.sibmaks.storage.local.EnableLocalStorageService;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,7 +23,7 @@ import java.util.Objects;
  */
 @EnableTransactionManagement
 @EnableJpaRepositories(
-        basePackageClasses = {BucketEntity.class, ContentEntity.class, ContentMetaEntity.class},
+        basePackageClasses = {EnableLocalStorageService.class},
         entityManagerFactoryRef = "localStorageEntityManagerFactory",
         transactionManagerRef = "localStorageTransactionManager"
 )
@@ -59,7 +57,7 @@ public class LocalStorageServiceConfig {
             EntityManagerFactoryBuilder managerFactoryBuilder) {
         return managerFactoryBuilder
                 .dataSource(dataSource)
-                .packages(BucketEntity.class, ContentEntity.class, ContentMetaEntity.class)
+                .packages(EnableLocalStorageService.class)
                 .build();
     }
 
