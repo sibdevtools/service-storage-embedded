@@ -16,11 +16,10 @@ import java.time.ZonedDateTime;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "STORAGE_CONTENT")
+@Table(name = "content")
 public class ContentEntity {
     @Id
     @Column(name = "uid")
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String uid;
     @Column(name = "name", nullable = false)
     private String name;

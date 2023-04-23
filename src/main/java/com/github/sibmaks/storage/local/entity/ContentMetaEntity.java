@@ -14,7 +14,7 @@ import lombok.*;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "STORAGE_CONTENT_META")
+@Table(name = "content_meta")
 public class ContentMetaEntity {
     @Id
     @Column(name = "id")
