@@ -32,6 +32,8 @@ dependencies {
     implementation "com.fasterxml.jackson.core:jackson-databind:${lib_jackson_version}"
 
     implementation "com.github.sibmaks:mad-storage-api:${lib_mad_storage_api_version}"
+    implementation "com.github.sibmaks:mad-error-api:${lib_mad_error_api_version}"
+
     implementation "jakarta.annotation:jakarta.annotation-api:${lib_jakarta_annotation_version}"
     implementation "jakarta.persistence:jakarta.persistence-api:${lib_jakarta_persistence_version}"
 
