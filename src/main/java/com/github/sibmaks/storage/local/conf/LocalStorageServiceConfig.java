@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -16,11 +17,13 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
 import java.util.Objects;
+import java.util.Properties;
 
 /**
  * @author sibmaks
  * @since 2023-04-11
  */
+@PropertySource("classpath:storage-local-application.properties")
 @EnableTransactionManagement
 @EnableJpaRepositories(
         basePackageClasses = {EnableLocalStorageService.class},
@@ -62,13 +65,22 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageTransactionManager")
+    @Qualifier("localStorageJpaProperties")
     @ConfigurationProperties("spring.jpa.local-storage")
+    public Properties localStorageJpaProperties() {
+        return new Properties();
+    }
+
+    @Bean
+    @Qualifier("localStorageTransactionManager")
     public PlatformTransactionManager localStorageTransactionManager(
-            @Qualifier("localStorageEntityManagerFactory") LocalContainerEntityManagerFactoryBean managerFactoryBean) {
+            @Qualifier("localStorageEntityManagerFactory") LocalContainerEntityManagerFactoryBean managerFactoryBean,
+            @Qualifier("localStorageJpaProperties") Properties localStorageJpaProperties) {
         var entityManagerFactory = managerFactoryBean.getObject();
         Objects.requireNonNull(entityManagerFactory);
-        return new JpaTransactionManager(entityManagerFactory);
+        var jpaTransactionManager = new JpaTransactionManager(entityManagerFactory);
+        jpaTransactionManager.setJpaProperties(localStorageJpaProperties);
+        return jpaTransactionManager;
     }
 
     @Bean
