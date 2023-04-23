@@ -86,8 +86,10 @@ public class LocalStorageServiceConfig {
     @Bean
     @Qualifier("localStorageFlywayConfiguration")
     @ConfigurationProperties("spring.flyway.local-storage")
-    public ClassicConfiguration localStorageFlywayConfiguration() {
-        return new ClassicConfiguration();
+    public ClassicConfiguration localStorageFlywayConfiguration(@Qualifier("localStorageDataSource") DataSource dataSource) {
+        var classicConfiguration = new ClassicConfiguration();
+        classicConfiguration.setDataSource(dataSource);
+        return classicConfiguration;
     }
 
     @Bean
