@@ -57,7 +57,7 @@ public class LocalStorageServiceConfig {
     @Bean
     @Qualifier("localStorageJpaProperties")
     @ConfigurationProperties("spring.jpa.local-storage.properties")
-    public Map<String, ?> localStorageJpaProperties() {
+    public Map<String, String> localStorageJpaProperties() {
         return new HashMap<>();
     }
 
@@ -66,7 +66,7 @@ public class LocalStorageServiceConfig {
     public LocalContainerEntityManagerFactoryBean localStorageEntityManagerFactory(
             @Qualifier("localStorageDataSource") DataSource dataSource,
             EntityManagerFactoryBuilder managerFactoryBuilder,
-            @Qualifier("localStorageJpaProperties") Map<String, ?> localStorageJpaProperties) {
+            @Qualifier("localStorageJpaProperties") Map<String, String> localStorageJpaProperties) {
         return managerFactoryBuilder
                 .dataSource(dataSource)
                 .packages(EnableLocalStorageService.class)
