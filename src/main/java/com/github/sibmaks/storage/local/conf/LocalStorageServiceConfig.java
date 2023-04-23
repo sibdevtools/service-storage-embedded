@@ -56,7 +56,7 @@ public class LocalStorageServiceConfig {
 
     @Bean
     @Qualifier("localStorageJpaProperties")
-    @ConfigurationProperties("spring.jpa.local-storage")
+    @ConfigurationProperties("spring.jpa.local-storage.properties")
     public Map<String, ?> localStorageJpaProperties() {
         return new HashMap<>();
     }
