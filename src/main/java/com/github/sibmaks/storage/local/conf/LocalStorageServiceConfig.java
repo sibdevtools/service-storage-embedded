@@ -16,6 +16,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -53,13 +55,22 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
+    @Qualifier("localStorageJpaProperties")
+    @ConfigurationProperties("spring.jpa.local-storage")
+    public Map<String, ?> localStorageJpaProperties() {
+        return new HashMap<>();
+    }
+
+    @Bean
     @Qualifier("localStorageEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean localStorageEntityManagerFactory(
             @Qualifier("localStorageDataSource") DataSource dataSource,
-            EntityManagerFactoryBuilder managerFactoryBuilder) {
+            EntityManagerFactoryBuilder managerFactoryBuilder,
+            @Qualifier("localStorageJpaProperties") Map<String, ?> localStorageJpaProperties) {
         return managerFactoryBuilder
                 .dataSource(dataSource)
                 .packages(EnableLocalStorageService.class)
+                .properties(localStorageJpaProperties)
                 .build();
     }
 
