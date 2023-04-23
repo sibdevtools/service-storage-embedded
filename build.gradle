@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.github.sibmaks'
-version = '0.0.12'
+version = '0.0.13'
 sourceCompatibility = jdk_version
 
 configurations {

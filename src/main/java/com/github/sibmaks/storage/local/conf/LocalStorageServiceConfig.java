@@ -2,7 +2,7 @@ package com.github.sibmaks.storage.local.conf;
 
 import com.github.sibmaks.storage.local.EnableLocalStorageService;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.api.configuration.ClassicConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -84,11 +84,15 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
+    @Qualifier("localStorageFlywayConfiguration")
+    @ConfigurationProperties("spring.flyway.local-storage")
+    public ClassicConfiguration localStorageFlywayConfiguration() {
+        return new ClassicConfiguration();
+    }
+
+    @Bean
     @Qualifier("localStorageFlyway")
-    public Flyway localStorageFlyway(@Qualifier("localStorageDataSource") DataSource dataSource) {
-        var configuration = new FluentConfiguration();
-        configuration.dataSource(dataSource);
-        configuration.locations("db/migration/local-storage");
+    public Flyway localStorageFlyway(@Qualifier("localStorageFlywayConfiguration") ClassicConfiguration configuration) {
         var flyway = new Flyway(configuration);
         flyway.migrate();
         return flyway;
