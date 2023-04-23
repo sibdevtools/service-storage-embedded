@@ -63,6 +63,7 @@ public class LocalStorageServiceConfig {
 
     @Bean
     @Qualifier("localStorageTransactionManager")
+    @ConfigurationProperties("spring.jpa.local-storage")
     public PlatformTransactionManager localStorageTransactionManager(
             @Qualifier("localStorageEntityManagerFactory") LocalContainerEntityManagerFactoryBean managerFactoryBean) {
         var entityManagerFactory = managerFactoryBean.getObject();
