@@ -69,7 +69,7 @@ public class LocalStorageService implements StorageService {
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.NOT_FOUND, "Content not found"));
         var meta = contentMetaEntityRepository.findAllByContentUid(id)
                 .stream()
-                .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getKey));
+                .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getValue));
 
         var path = getPath(id);
         byte[] content;
