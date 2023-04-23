@@ -20,8 +20,10 @@ public class ContentMetaEntity {
     @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-    @Column(name = "key", nullable = false)
+    @Column(name = "meta_key", nullable = false)
     private String key;
-    @Column(name = "value", nullable = false)
+    @Column(name = "meta_value", nullable = false)
     private String value;
+    @Column(name = "content_uid", nullable = false)
+    private String contentUid;
 }

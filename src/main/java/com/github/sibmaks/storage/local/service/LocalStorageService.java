@@ -12,6 +12,7 @@ import com.github.sibmaks.storage.local.io.LocalContentReader;
 import com.github.sibmaks.storage.local.io.LocalContentWriter;
 import com.github.sibmaks.storage.local.repository.BucketEntityRepository;
 import com.github.sibmaks.storage.local.repository.ContentEntityRepository;
+import com.github.sibmaks.storage.local.repository.ContentMetaEntityRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,7 @@ public class LocalStorageService implements StorageService {
     private final LocalContentWriter localContentWriter;
     private final BucketEntityRepository bucketEntityRepository;
     private final ContentEntityRepository contentEntityRepository;
+    private final ContentMetaEntityRepository contentMetaEntityRepository;
 
     @PostConstruct
     public void setUp() {
@@ -65,7 +67,7 @@ public class LocalStorageService implements StorageService {
     public Content get(String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.NOT_FOUND, "Content not found"));
-        var meta = contentEntity.getMeta()
+        var meta = contentMetaEntityRepository.findAllByContentUid(id)
                 .stream()
                 .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getKey));
 
@@ -104,9 +106,11 @@ public class LocalStorageService implements StorageService {
         var path = getPath(id);
         var file = path.toFile();
         if (!file.exists()) {
+            contentMetaEntityRepository.deleteAllByContentUid(id);
             contentEntityRepository.delete(contentEntity);
             return;
         }
+        contentMetaEntityRepository.deleteAllByContentUid(id);
         contentEntityRepository.delete(contentEntity);
         // Maybe better do it by scheduler or via async tasks
         if(!file.delete()) {
@@ -129,12 +133,12 @@ public class LocalStorageService implements StorageService {
                         .value(it.getValue())
                         .build())
                 .collect(Collectors.toList());
+        contentMetaEntityRepository.saveAll(metaEntities);
 
         var entity = ContentEntity.builder()
                 .uid(UUID.randomUUID().toString())
                 .name(name)
                 .bucket(bucketEntity)
-                .meta(metaEntities)
                 .createdAt(ZonedDateTime.now())
                 .modifiedAt(ZonedDateTime.now())
                 .build();

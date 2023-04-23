@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.ZonedDateTime;
-import java.util.List;
 
 /**
  * @author sibmaks
@@ -28,9 +27,6 @@ public class ContentEntity {
     @ManyToOne(optional = false)
     @JoinColumn(name = "bucket_id")
     private BucketEntity bucket;
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JoinColumn(name = "content_uid")
-    private List<ContentMetaEntity> meta;
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
     @Column(name = "modified_at", nullable = false)
