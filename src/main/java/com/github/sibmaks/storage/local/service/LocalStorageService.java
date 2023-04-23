@@ -127,24 +127,26 @@ public class LocalStorageService implements StorageService {
         if(bucketEntity.isReadonly()) {
             throw new ServiceException(StorageErrors.BUCKET_READONLY, "Bucket is readonly");
         }
-        var metaEntities = meta.entrySet().stream()
-                .map(it -> ContentMetaEntity.builder()
-                        .key(it.getKey())
-                        .value(it.getValue())
-                        .build())
-                .collect(Collectors.toList());
-        contentMetaEntityRepository.saveAll(metaEntities);
 
+        var uid = UUID.randomUUID().toString();
         var entity = ContentEntity.builder()
-                .uid(UUID.randomUUID().toString())
+                .uid(uid)
                 .name(name)
                 .bucket(bucketEntity)
                 .createdAt(ZonedDateTime.now())
                 .modifiedAt(ZonedDateTime.now())
                 .build();
-        entity = contentEntityRepository.save(entity);
+        contentEntityRepository.save(entity);
 
-        String uid = entity.getUid();
+        var metaEntities = meta.entrySet().stream()
+                .map(it -> ContentMetaEntity.builder()
+                        .key(it.getKey())
+                        .value(it.getValue())
+                        .contentUid(uid)
+                        .build())
+                .collect(Collectors.toList());
+        contentMetaEntityRepository.saveAll(metaEntities);
+
         var path = getPath(uid);
         try (var channel = FileChannel.open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             localContentWriter.write(content, channel);
