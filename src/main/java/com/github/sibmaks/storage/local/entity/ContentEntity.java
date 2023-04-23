@@ -17,7 +17,7 @@ import java.util.List;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "STORAGE_CONTENT")
+@Table(schema = "LOCAL_STORAGE", name = "STORAGE_CONTENT")
 public class ContentEntity {
     @Id
     @Column(name = "uid")

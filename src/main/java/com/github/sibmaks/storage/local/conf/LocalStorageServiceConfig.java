@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
 import java.util.Objects;
-import java.util.Properties;
 
 /**
  * @author sibmaks
@@ -65,22 +64,12 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageJpaProperties")
-    @ConfigurationProperties("spring.jpa.local-storage")
-    public Properties localStorageJpaProperties() {
-        return new Properties();
-    }
-
-    @Bean
     @Qualifier("localStorageTransactionManager")
     public PlatformTransactionManager localStorageTransactionManager(
-            @Qualifier("localStorageEntityManagerFactory") LocalContainerEntityManagerFactoryBean managerFactoryBean,
-            @Qualifier("localStorageJpaProperties") Properties localStorageJpaProperties) {
+            @Qualifier("localStorageEntityManagerFactory") LocalContainerEntityManagerFactoryBean managerFactoryBean) {
         var entityManagerFactory = managerFactoryBean.getObject();
         Objects.requireNonNull(entityManagerFactory);
-        var jpaTransactionManager = new JpaTransactionManager(entityManagerFactory);
-        jpaTransactionManager.setJpaProperties(localStorageJpaProperties);
-        return jpaTransactionManager;
+        return new JpaTransactionManager(entityManagerFactory);
     }
 
     @Bean

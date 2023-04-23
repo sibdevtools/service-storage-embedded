@@ -16,7 +16,7 @@ import java.time.ZonedDateTime;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "STORAGE_BUCKET")
+@Table(schema = "LOCAL_STORAGE", name = "STORAGE_BUCKET")
 public class BucketEntity {
     @Id
     @Column(name = "id")
