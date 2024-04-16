@@ -1,11 +1,8 @@
-# Local storage service
+# Simple Mock - Service Storage Local
 
-## Spring properties
+## To build
 
-```properties
-# Folder to save files
-app.local.storage.folder=/path/to/folder
-
-# Datasource configs for local storage
-spring.datasource.local-storage.*
+```shell
+chmod +x gradlew
+./gradlew clean build
 ```

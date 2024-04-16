@@ -1,6 +1,6 @@
-package com.github.sibmaks.storage.local;
+package com.github.simple_mocks.storage.local;
 
-import com.github.sibmaks.storage.local.conf.LocalStorageServiceConfig;
+import com.github.simple_mocks.storage.local.conf.LocalStorageServiceConfig;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
@@ -9,9 +9,9 @@ import java.lang.annotation.*;
  * Enabler for local implementation of storage service.
  *
  * @author sibmaks
- * @since 2023-04-11
- * @see com.github.sibmaks.storage.api.StorageService
- * @see com.github.sibmaks.storage.local.service.LocalStorageService
+ * @since 0.0.1
+ * @see com.github.simple_mocks.storage.api.StorageService
+ * @see com.github.simple_mocks.storage.local.service.LocalStorageService
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

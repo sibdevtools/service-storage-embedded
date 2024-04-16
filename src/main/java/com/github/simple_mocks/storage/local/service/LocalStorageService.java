@@ -1,20 +1,19 @@
-package com.github.sibmaks.storage.local.service;
+package com.github.simple_mocks.storage.local.service;
 
-import com.github.sibmaks.error_service.exception.ServiceException;
-import com.github.sibmaks.storage.api.Content;
-import com.github.sibmaks.storage.api.StorageErrors;
-import com.github.sibmaks.storage.api.StorageService;
-import com.github.sibmaks.storage.local.conf.LocalStorageServiceEnabled;
-import com.github.sibmaks.storage.local.dto.LocalContent;
-import com.github.sibmaks.storage.local.entity.ContentEntity;
-import com.github.sibmaks.storage.local.entity.ContentMetaEntity;
-import com.github.sibmaks.storage.local.io.LocalContentReader;
-import com.github.sibmaks.storage.local.io.LocalContentWriter;
-import com.github.sibmaks.storage.local.repository.BucketEntityRepository;
-import com.github.sibmaks.storage.local.repository.ContentEntityRepository;
-import com.github.sibmaks.storage.local.repository.ContentMetaEntityRepository;
+import com.github.simple_mocks.error_service.exception.ServiceException;
+import com.github.simple_mocks.storage.api.Content;
+import com.github.simple_mocks.storage.api.StorageErrors;
+import com.github.simple_mocks.storage.api.StorageService;
+import com.github.simple_mocks.storage.local.conf.LocalStorageServiceEnabled;
+import com.github.simple_mocks.storage.local.dto.LocalContent;
+import com.github.simple_mocks.storage.local.entity.ContentEntity;
+import com.github.simple_mocks.storage.local.entity.ContentMetaEntity;
+import com.github.simple_mocks.storage.local.io.ContentReader;
+import com.github.simple_mocks.storage.local.io.ContentWriter;
+import com.github.simple_mocks.storage.local.repository.BucketEntityRepository;
+import com.github.simple_mocks.storage.local.repository.ContentEntityRepository;
+import com.github.simple_mocks.storage.local.repository.ContentMetaEntityRepository;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -24,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -34,26 +34,50 @@ import java.util.stream.Collectors;
 
 /**
  * @author sibmaks
- * @since 2023-04-11
+ * @since 0.0.1
  */
 @Service
 @ConditionalOnBean(LocalStorageServiceEnabled.class)
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class LocalStorageService implements StorageService {
     @Value("${app.local.storage.folder}")
     private String folder;
 
-    private final LocalContentReader localContentReader;
-    private final LocalContentWriter localContentWriter;
+    private final ContentReader contentReader;
+    private final ContentWriter contentWriter;
     private final BucketEntityRepository bucketEntityRepository;
     private final ContentEntityRepository contentEntityRepository;
     private final ContentMetaEntityRepository contentMetaEntityRepository;
 
+    /**
+     * Construct local storage service
+     *
+     * @param contentReader               content reader
+     * @param contentWriter               content writer
+     * @param bucketEntityRepository      bucket entity repository
+     * @param contentEntityRepository     content entity repository
+     * @param contentMetaEntityRepository content meta entity repository
+     */
+    @Autowired
+    public LocalStorageService(ContentReader contentReader,
+                               ContentWriter contentWriter,
+                               BucketEntityRepository bucketEntityRepository,
+                               ContentEntityRepository contentEntityRepository,
+                               ContentMetaEntityRepository contentMetaEntityRepository) {
+        this.contentReader = contentReader;
+        this.contentWriter = contentWriter;
+        this.bucketEntityRepository = bucketEntityRepository;
+        this.contentEntityRepository = contentEntityRepository;
+        this.contentMetaEntityRepository = contentMetaEntityRepository;
+    }
+
+    /**
+     * Set up local storage service
+     */
     @PostConstruct
     public void setUp() {
         var file = new File(folder);
-        if(file.exists()) {
-            if(!file.isDirectory()) {
+        if (file.exists()) {
+            if (!file.isDirectory()) {
                 throw new IllegalArgumentException("Path: %s exists and is not directory".formatted(folder));
             }
         } else {
@@ -67,19 +91,20 @@ public class LocalStorageService implements StorageService {
     public Content get(String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.NOT_FOUND, "Content not found"));
-        var meta = contentMetaEntityRepository.findAllByContentUid(id)
-                .stream()
-                .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getValue));
 
         var path = getPath(id);
         byte[] content;
         try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
-            content = localContentReader.read(channel);
+            content = contentReader.read(channel);
         } catch (NoSuchFileException e) {
             throw new ServiceException(404, StorageErrors.NOT_FOUND, "File not found", e);
         } catch (IOException e) {
             throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Unexpected error", e);
         }
+
+        var meta = contentMetaEntityRepository.findAllByContentUid(id)
+                .stream()
+                .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getValue));
 
         return LocalContent.builder()
                 .id(contentEntity.getUid())
@@ -87,7 +112,7 @@ public class LocalStorageService implements StorageService {
                 .content(content)
                 .meta(meta)
                 .createdAt(contentEntity.getCreatedAt())
-                .createdAt(contentEntity.getModifiedAt())
+                .modifiedAt(contentEntity.getModifiedAt())
                 .build();
     }
 
@@ -96,24 +121,23 @@ public class LocalStorageService implements StorageService {
     public void delete(String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElse(null);
-        if(contentEntity == null) {
+        if (contentEntity == null) {
             return;
         }
         var bucket = contentEntity.getBucket();
-        if(bucket.isReadonly()) {
-            throw new ServiceException(StorageErrors.BUCKET_READONLY, "Bucket is readonly");
+        if (bucket.isReadonly()) {
+            throw new ServiceException(403, StorageErrors.BUCKET_READONLY, "Bucket is readonly");
         }
         var path = getPath(id);
-        var file = path.toFile();
-        if (!file.exists()) {
-            contentMetaEntityRepository.deleteAllByContentUid(id);
-            contentEntityRepository.delete(contentEntity);
-            return;
-        }
         contentMetaEntityRepository.deleteAllByContentUid(id);
         contentEntityRepository.delete(contentEntity);
+        if (Files.notExists(path)) {
+            return;
+        }
         // Maybe better do it by scheduler or via async tasks
-        if(!file.delete()) {
+        try {
+            Files.delete(path);
+        } catch (IOException e) {
             throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Can't delete file");
         }
     }
@@ -124,8 +148,8 @@ public class LocalStorageService implements StorageService {
         var bucketEntity = bucketEntityRepository.findByCode(bucket)
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.BUCKET_NOT_EXISTS, "Bucket not exists"));
 
-        if(bucketEntity.isReadonly()) {
-            throw new ServiceException(StorageErrors.BUCKET_READONLY, "Bucket is readonly");
+        if (bucketEntity.isReadonly()) {
+            throw new ServiceException(403, StorageErrors.BUCKET_READONLY, "Bucket is readonly");
         }
 
         var uid = UUID.randomUUID().toString();
@@ -143,13 +167,14 @@ public class LocalStorageService implements StorageService {
                         .key(it.getKey())
                         .value(it.getValue())
                         .contentUid(uid)
-                        .build())
-                .collect(Collectors.toList());
+                        .build()
+                )
+                .toList();
         contentMetaEntityRepository.saveAll(metaEntities);
 
         var path = getPath(uid);
         try (var channel = FileChannel.open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-            localContentWriter.write(content, channel);
+            contentWriter.write(content, channel);
         } catch (IOException e) {
             throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Can't create content");
         }

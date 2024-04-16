@@ -1,11 +1,11 @@
-package com.github.sibmaks.storage.local.entity;
+package com.github.simple_mocks.storage.local.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 /**
  * @author sibmaks
- * @since 2023-04-22
+ * @since 0.0.1
  */
 @Entity
 @Getter

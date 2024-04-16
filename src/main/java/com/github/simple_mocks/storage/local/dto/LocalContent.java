@@ -1,6 +1,6 @@
-package com.github.sibmaks.storage.local.dto;
+package com.github.simple_mocks.storage.local.dto;
 
-import com.github.sibmaks.storage.api.Content;
+import com.github.simple_mocks.storage.api.Content;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,17 +13,35 @@ import java.util.Map;
 
 /**
  * @author sibmaks
- * @since 2023-04-11
+ * @since 0.0.1
  */
 @Getter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class LocalContent implements Content {
+    /**
+     * Content identifier
+     */
     private final String id;
+    /**
+     * Content name
+     */
     private final String name;
+    /**
+     * Content meta data
+     */
     private final Map<String, String> meta;
+    /**
+     * Content
+     */
     private final byte[] content;
+    /**
+     * Content creation date time
+     */
     private final ZonedDateTime createdAt;
+    /**
+     * Content modification date time
+     */
     private final ZonedDateTime modifiedAt;
 
     @Override

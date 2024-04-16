@@ -1,6 +1,6 @@
-package com.github.sibmaks.storage.local.conf;
+package com.github.simple_mocks.storage.local.conf;
 
-import com.github.sibmaks.storage.local.EnableLocalStorageService;
+import com.github.simple_mocks.storage.local.EnableLocalStorageService;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.ClassicConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,7 +22,7 @@ import java.util.Objects;
 
 /**
  * @author sibmaks
- * @since 2023-04-11
+ * @since 0.0.1
  */
 @PropertySource("classpath:storage-local-application.properties")
 @EnableTransactionManagement
@@ -39,14 +39,12 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageDataSourceProperties")
     @ConfigurationProperties("spring.datasource.local-storage")
     public DataSourceProperties localStorageDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    @Qualifier("localStorageDataSource")
     public DataSource localStorageDataSource(
             @Qualifier("localStorageDataSourceProperties") DataSourceProperties dataSourceProperties) {
         return dataSourceProperties
@@ -55,14 +53,12 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageJpaProperties")
     @ConfigurationProperties("spring.jpa.local-storage.properties")
     public Map<String, String> localStorageJpaProperties() {
         return new HashMap<>();
     }
 
     @Bean
-    @Qualifier("localStorageEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean localStorageEntityManagerFactory(
             @Qualifier("localStorageDataSource") DataSource dataSource,
             EntityManagerFactoryBuilder managerFactoryBuilder,
@@ -75,7 +71,6 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageTransactionManager")
     public PlatformTransactionManager localStorageTransactionManager(
             @Qualifier("localStorageEntityManagerFactory") LocalContainerEntityManagerFactoryBean managerFactoryBean) {
         var entityManagerFactory = managerFactoryBean.getObject();
@@ -84,7 +79,6 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageFlywayConfiguration")
     @ConfigurationProperties("spring.flyway.local-storage")
     public ClassicConfiguration localStorageFlywayConfiguration(@Qualifier("localStorageDataSource") DataSource dataSource) {
         var classicConfiguration = new ClassicConfiguration();
@@ -93,7 +87,6 @@ public class LocalStorageServiceConfig {
     }
 
     @Bean
-    @Qualifier("localStorageFlyway")
     public Flyway localStorageFlyway(@Qualifier("localStorageFlywayConfiguration") ClassicConfiguration configuration) {
         var flyway = new Flyway(configuration);
         flyway.migrate();

@@ -1,13 +1,13 @@
-package com.github.sibmaks.storage.local.repository;
+package com.github.simple_mocks.storage.local.repository;
 
-import com.github.sibmaks.storage.local.entity.BucketEntity;
+import com.github.simple_mocks.storage.local.entity.BucketEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
 /**
  * @author sibmaks
- * @since 2023-04-22
+ * @since 0.0.1
  */
 public interface BucketEntityRepository extends JpaRepository<BucketEntity, Long> {
     /**
