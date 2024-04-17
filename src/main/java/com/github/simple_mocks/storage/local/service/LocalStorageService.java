@@ -118,7 +118,7 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public void delete(String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElse(null);
@@ -144,7 +144,7 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public String create(String bucket, String name, Map<String, String> meta, byte[] content) {
         var bucketEntity = bucketEntityRepository.findByCode(bucket)
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.BUCKET_NOT_EXISTS, "Bucket not exists"));
