@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
@@ -117,7 +118,7 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void delete(String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElse(null);
@@ -143,7 +144,7 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public String create(String bucket, String name, Map<String, String> meta, byte[] content) {
         var bucketEntity = bucketEntityRepository.findByCode(bucket)
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.BUCKET_NOT_EXISTS, "Bucket not exists"));
