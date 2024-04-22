@@ -2,21 +2,25 @@ package com.github.simple_mocks.storage.local.service;
 
 import com.github.simple_mocks.error_service.exception.ServiceException;
 import com.github.simple_mocks.storage.api.StorageErrors;
+import com.github.simple_mocks.storage.local.WhiteBox;
+import com.github.simple_mocks.storage.local.conf.LocalStorageServiceProperties;
+import com.github.simple_mocks.storage.local.dto.ContentStorageFormat;
 import com.github.simple_mocks.storage.local.entity.BucketEntity;
 import com.github.simple_mocks.storage.local.entity.ContentEntity;
 import com.github.simple_mocks.storage.local.entity.ContentMetaEntity;
-import com.github.simple_mocks.storage.local.io.ContentReader;
-import com.github.simple_mocks.storage.local.io.ContentWriter;
 import com.github.simple_mocks.storage.local.repository.BucketEntityRepository;
 import com.github.simple_mocks.storage.local.repository.ContentEntityRepository;
 import com.github.simple_mocks.storage.local.repository.ContentMetaEntityRepository;
+import com.github.simple_mocks.storage.local.service.codec.StorageCodec;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.util.ReflectionUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,7 +32,6 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -38,41 +41,54 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class LocalStorageServiceTest {
     @Mock
-    private ContentReader contentReader;
-    @Mock
-    private ContentWriter contentWriter;
-    @Mock
     private BucketEntityRepository bucketEntityRepository;
     @Mock
     private ContentEntityRepository contentEntityRepository;
     @Mock
     private ContentMetaEntityRepository contentMetaEntityRepository;
+    @Mock
+    private List<StorageCodec> storageCodecs;
+    @Mock
+    private LocalStorageServiceProperties properties;
     @InjectMocks
     private LocalStorageService service;
 
     @Test
     void testSetUpWhenFolderExistsAsFile() {
-        var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples/mock.data")).getPath();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+        var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples/1/mock.data")).getPath();
+
+        when(properties.getFolder())
+                .thenReturn(folder);
 
         var exception = assertThrows(IllegalArgumentException.class, () -> service.setUp());
-        assertEquals("Path: %s exists and is not directory".formatted(folder), exception.getMessage());
+        assertEquals("Path: '%s' exists and is not directory".formatted(folder), exception.getMessage());
     }
 
     @Test
     void testSetUpWhenFolderExists() {
         var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples")).getPath();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+
+        when(properties.getFolder())
+                .thenReturn(folder);
 
         try {
             service.setUp();
         } catch (Exception e) {
             fail(e);
         }
+    }
+
+    @Test
+    void testSetUpWhenDirectoryCanNotBeCreated() {
+        var folder = StringUtils.repeat('-', 1024);
+
+        when(properties.getFolder())
+                .thenReturn(folder);
+
+        var exception = assertThrows(ServiceException.class, () -> service.setUp());
+        assertEquals(503, exception.getStatus());
+        assertEquals("Can't create dirs: " + folder, exception.getMessage());
+        assertEquals(StorageErrors.UNEXPECTED_ERROR, exception.getServiceError());
     }
 
     @Test
@@ -90,14 +106,32 @@ class LocalStorageServiceTest {
     @Test
     void testGetContentWhenFileNotExists() {
         var folder = UUID.randomUUID().toString();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+
+        when(properties.getFolder())
+                .thenReturn(folder);
+
+        var storageFormat = mock(ContentStorageFormat.class);
+        var storageCodec = mock(StorageCodec.class);
+        var storageCodecs = Map.of(
+                storageFormat, storageCodec
+        );
+        WhiteBox.set(service, "storageCodecs", storageCodecs);
 
         var id = UUID.randomUUID().toString();
         var content = mock(ContentEntity.class);
         when(contentEntityRepository.findById(id))
                 .thenReturn(Optional.of(content));
+
+        when(content.getStorageFormat())
+                .thenReturn(storageFormat);
+
+        var bucketEntity = mock(BucketEntity.class);
+        when(content.getBucket())
+                .thenReturn(bucketEntity);
+
+        var bucketId = UUID.randomUUID().getLeastSignificantBits();
+        when(bucketEntity.getId())
+                .thenReturn(bucketId);
 
         var exception = assertThrows(ServiceException.class, () -> service.get(id));
         assertEquals(404, exception.getStatus());
@@ -111,36 +145,41 @@ class LocalStorageServiceTest {
     }
 
     @Test
-    void testGetContentWhenCannotReadContent() throws IOException {
-        var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples")).getPath();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+    void testGetWhenCodecIsUnsupported() {
+        WhiteBox.set(service, "storageCodecs", Collections.emptyMap());
 
         var id = "mock";
-        var content = mock(ContentEntity.class);
+        var contentEntity = mock(ContentEntity.class);
         when(contentEntityRepository.findById(id))
-                .thenReturn(Optional.of(content));
+                .thenReturn(Optional.of(contentEntity));
 
-        var cause = new IOException(UUID.randomUUID().toString());
-        when(contentReader.read(any()))
-                .thenThrow(cause);
+        var storageFormat = mock(ContentStorageFormat.class);
+        when(contentEntity.getStorageFormat())
+                .thenReturn(storageFormat);
 
         var exception = assertThrows(ServiceException.class, () -> service.get(id));
         assertEquals(503, exception.getStatus());
-        assertEquals("Unexpected error", exception.getMessage());
+        assertEquals("Unsupported storage format: %s".formatted(storageFormat), exception.getMessage());
         assertEquals(StorageErrors.UNEXPECTED_ERROR, exception.getServiceError());
-
-        var actualCause = exception.getCause();
-        assertEquals(cause, actualCause);
     }
 
-    @Test
-    void testGetContent() throws IOException {
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 32, 1024})
+    void testGet(int bufferSize) {
         var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples")).getPath();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+
+        when(properties.getFolder())
+                .thenReturn(folder);
+
+        when(properties.getBufferSize())
+                .thenReturn(bufferSize);
+
+        var storageFormat = mock(ContentStorageFormat.class);
+        var storageCodec = mock(StorageCodec.class);
+        var storageCodecs = Map.of(
+                storageFormat, storageCodec
+        );
+        WhiteBox.set(service, "storageCodecs", storageCodecs);
 
         var id = "mock";
         var contentEntity = mock(ContentEntity.class);
@@ -163,8 +202,19 @@ class LocalStorageServiceTest {
         when(contentEntity.getModifiedAt())
                 .thenReturn(contentEntityModifiedAt);
 
+        when(contentEntity.getStorageFormat())
+                .thenReturn(storageFormat);
+
+        var bucket = mock(BucketEntity.class);
+        when(contentEntity.getBucket())
+                .thenReturn(bucket);
+
+        var bucketId = 1L;
+        when(bucket.getId())
+                .thenReturn(bucketId);
+
         var content = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
-        when(contentReader.read(any()))
+        when(storageCodec.decode(any()))
                 .thenReturn(content);
 
         var contentMetaEntity = mock(ContentMetaEntity.class);
@@ -232,9 +282,9 @@ class LocalStorageServiceTest {
     @Test
     void testDeleteWhenPhysicallyRemoved() {
         var folder = UUID.randomUUID().toString();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+
+        when(properties.getFolder())
+                .thenReturn(folder);
 
         var id = UUID.randomUUID().toString();
         var contentEntity = mock(ContentEntity.class);
@@ -261,16 +311,26 @@ class LocalStorageServiceTest {
 
     @Test
     void testDelete() throws IOException {
-        var tmpFile = Files.createTempFile(UUID.randomUUID().toString(), ".data");
-        try(var writer = new FileOutputStream(tmpFile.toFile())) {
+        var tmpDirectory = Files.createTempDirectory(UUID.randomUUID().toString());
+
+        var id = UUID.randomUUID().toString();
+        var bucketId = Math.absExact(UUID.randomUUID().hashCode());
+        var bucketDir = Files.createDirectory(
+                tmpDirectory
+                        .resolve(String.valueOf(bucketId))
+        );
+        var tmpFile = Files.createFile(
+                bucketDir
+                        .resolve(id + ".data")
+        );
+        try (var writer = new FileOutputStream(tmpFile.toFile())) {
             writer.write(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
         }
-        var folder = tmpFile.getParent().toAbsolutePath().toString();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+        var folder = tmpDirectory.toAbsolutePath().toString();
 
-        var id = tmpFile.toFile().getName().split("\\.data")[0];
+        when(properties.getFolder())
+                .thenReturn(folder);
+
         var contentEntity = mock(ContentEntity.class);
         when(contentEntityRepository.findById(id))
                 .thenReturn(Optional.of(contentEntity));
@@ -278,6 +338,9 @@ class LocalStorageServiceTest {
         var bucketEntity = mock(BucketEntity.class);
         when(contentEntity.getBucket())
                 .thenReturn(bucketEntity);
+
+        when(bucketEntity.getId())
+                .thenReturn((long) bucketId);
 
         when(bucketEntity.isReadonly())
                 .thenReturn(false);
@@ -291,6 +354,8 @@ class LocalStorageServiceTest {
 
         verify(contentEntityRepository, once)
                 .delete(contentEntity);
+
+        assertTrue(Files.notExists(tmpFile));
     }
 
     @Test
@@ -322,11 +387,12 @@ class LocalStorageServiceTest {
     }
 
     @Test
-    void testCreateWhenExceptionDuringWriting() throws IOException {
-        var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples")).getPath();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+    void testCreateWhenCodecIsUnsupported() {
+        var storageFormat = mock(ContentStorageFormat.class);
+        WhiteBox.set(service, "storageCodecs", Collections.emptyMap());
+
+        when(properties.getStorageFormat())
+                .thenReturn(storageFormat);
 
         var bucket = UUID.randomUUID().toString();
         var bucketEntity = mock(BucketEntity.class);
@@ -337,24 +403,38 @@ class LocalStorageServiceTest {
                 .thenReturn(false);
 
         var content = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
-        var cause = new IOException(UUID.randomUUID().toString());
-        doThrow(cause)
-                .when(contentWriter).write(eq(content), any());
+
+        var metaKey = UUID.randomUUID().toString();
+        var metaValue = UUID.randomUUID().toString();
 
         var name = UUID.randomUUID().toString();
-        var meta = mock(Map.class);
-        var exception = assertThrows(ServiceException.class, () -> service.create(bucket, name, meta, content));
+        var meta = Map.of(metaKey, metaValue);
+
+        var exception = assertThrows(
+                ServiceException.class,
+                () -> service.create(bucket, name, meta, content)
+        );
         assertEquals(503, exception.getStatus());
-        assertEquals("Can't create content", exception.getMessage());
+        assertEquals("Unsupported storage format: %s".formatted(storageFormat), exception.getMessage());
         assertEquals(StorageErrors.UNEXPECTED_ERROR, exception.getServiceError());
     }
 
     @Test
-    void testCreate() {
-        var folder = Objects.requireNonNull(LocalStorageServiceTest.class.getResource("/samples")).getPath();
-        var folderField = Objects.requireNonNull(ReflectionUtils.findField(LocalStorageService.class, "folder"));
-        ReflectionUtils.makeAccessible(folderField);
-        ReflectionUtils.setField(folderField, service, folder);
+    void testCreate() throws IOException {
+        var folder = Files.createTempDirectory(UUID.randomUUID().toString());
+
+        when(properties.getFolder())
+                .thenReturn(folder.toAbsolutePath().toString());
+
+        var storageFormat = mock(ContentStorageFormat.class);
+        var storageCodec = mock(StorageCodec.class);
+        var storageCodecs = Map.of(
+                storageFormat, storageCodec
+        );
+        WhiteBox.set(service, "storageCodecs", storageCodecs);
+
+        when(properties.getStorageFormat())
+                .thenReturn(storageFormat);
 
         var bucket = UUID.randomUUID().toString();
         var bucketEntity = mock(BucketEntity.class);
@@ -363,6 +443,9 @@ class LocalStorageServiceTest {
 
         when(bucketEntity.isReadonly())
                 .thenReturn(false);
+
+        when(storageCodec.encode(any()))
+                .thenAnswer(it -> it.getArgument(0));
 
         var content = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
 

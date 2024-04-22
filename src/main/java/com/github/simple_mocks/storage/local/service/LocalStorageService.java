@@ -5,32 +5,35 @@ import com.github.simple_mocks.storage.api.Content;
 import com.github.simple_mocks.storage.api.StorageErrors;
 import com.github.simple_mocks.storage.api.StorageService;
 import com.github.simple_mocks.storage.local.conf.LocalStorageServiceEnabled;
+import com.github.simple_mocks.storage.local.conf.LocalStorageServiceProperties;
 import com.github.simple_mocks.storage.local.dto.LocalContent;
 import com.github.simple_mocks.storage.local.entity.ContentEntity;
 import com.github.simple_mocks.storage.local.entity.ContentMetaEntity;
-import com.github.simple_mocks.storage.local.io.ContentReader;
-import com.github.simple_mocks.storage.local.io.ContentWriter;
+import com.github.simple_mocks.storage.local.dto.ContentStorageFormat;
 import com.github.simple_mocks.storage.local.repository.BucketEntityRepository;
 import com.github.simple_mocks.storage.local.repository.ContentEntityRepository;
 import com.github.simple_mocks.storage.local.repository.ContentMetaEntityRepository;
+import com.github.simple_mocks.storage.local.service.codec.StorageCodec;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -40,35 +43,33 @@ import java.util.stream.Collectors;
 @Service
 @ConditionalOnBean(LocalStorageServiceEnabled.class)
 public class LocalStorageService implements StorageService {
-    @Value("${app.local.storage.folder}")
-    private String folder;
-
-    private final ContentReader contentReader;
-    private final ContentWriter contentWriter;
     private final BucketEntityRepository bucketEntityRepository;
     private final ContentEntityRepository contentEntityRepository;
     private final ContentMetaEntityRepository contentMetaEntityRepository;
+    private final Map<ContentStorageFormat, StorageCodec> storageCodecs;
+    private final LocalStorageServiceProperties properties;
 
     /**
      * Construct local storage service
      *
-     * @param contentReader               content reader
-     * @param contentWriter               content writer
      * @param bucketEntityRepository      bucket entity repository
      * @param contentEntityRepository     content entity repository
      * @param contentMetaEntityRepository content meta entity repository
+     * @param storageCodecs               storage codecs
+     * @param properties                  local storage service properties
      */
     @Autowired
-    public LocalStorageService(ContentReader contentReader,
-                               ContentWriter contentWriter,
-                               BucketEntityRepository bucketEntityRepository,
+    public LocalStorageService(BucketEntityRepository bucketEntityRepository,
                                ContentEntityRepository contentEntityRepository,
-                               ContentMetaEntityRepository contentMetaEntityRepository) {
-        this.contentReader = contentReader;
-        this.contentWriter = contentWriter;
+                               ContentMetaEntityRepository contentMetaEntityRepository,
+                               List<StorageCodec> storageCodecs,
+                               LocalStorageServiceProperties properties) {
         this.bucketEntityRepository = bucketEntityRepository;
         this.contentEntityRepository = contentEntityRepository;
         this.contentMetaEntityRepository = contentMetaEntityRepository;
+        this.storageCodecs = storageCodecs.stream()
+                .collect(Collectors.toMap(StorageCodec::getFormat, Function.identity()));
+        this.properties = properties;
     }
 
     /**
@@ -76,14 +77,21 @@ public class LocalStorageService implements StorageService {
      */
     @PostConstruct
     public void setUp() {
-        var file = new File(folder);
-        if (file.exists()) {
-            if (!file.isDirectory()) {
-                throw new IllegalArgumentException("Path: %s exists and is not directory".formatted(folder));
+        var folder = properties.getFolder();
+        var path = Path.of(folder);
+        createDirectoriesIfNotExists(path);
+    }
+
+    private static void createDirectoriesIfNotExists(Path path) {
+        if (Files.exists(path)) {
+            if (!Files.isDirectory(path)) {
+                throw new IllegalArgumentException("Path: '%s' exists and is not directory".formatted(path));
             }
         } else {
-            if (!file.mkdirs()) {
-                throw new IllegalArgumentException("Can't create dirs: %s".formatted(folder));
+            try {
+                Files.createDirectories(path);
+            } catch (IOException e) {
+                throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Can't create dirs: %s".formatted(path));
             }
         }
     }
@@ -93,15 +101,20 @@ public class LocalStorageService implements StorageService {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElseThrow(() -> new ServiceException(404, StorageErrors.NOT_FOUND, "Content not found"));
 
-        var path = getPath(id);
-        byte[] content;
-        try (var channel = FileChannel.open(path, StandardOpenOption.READ)) {
-            content = contentReader.read(channel);
-        } catch (NoSuchFileException e) {
-            throw new ServiceException(404, StorageErrors.NOT_FOUND, "File not found", e);
-        } catch (IOException e) {
-            throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Unexpected error", e);
+        var storageFormat = contentEntity.getStorageFormat();
+        var storageCodec = storageCodecs.get(storageFormat);
+        if (storageCodec == null) {
+            throw new ServiceException(
+                    StorageErrors.UNEXPECTED_ERROR,
+                    "Unsupported storage format: %s".formatted(storageFormat)
+            );
         }
+        var bucket = contentEntity.getBucket();
+        var bucketId = bucket.getId();
+
+        var path = getPath(bucketId, id);
+        var content = readContent(path);
+        var decodedContent = storageCodec.decode(content);
 
         var meta = contentMetaEntityRepository.findAllByContentUid(id)
                 .stream()
@@ -110,11 +123,34 @@ public class LocalStorageService implements StorageService {
         return LocalContent.builder()
                 .id(contentEntity.getUid())
                 .name(contentEntity.getName())
-                .content(content)
+                .content(decodedContent)
                 .meta(meta)
                 .createdAt(contentEntity.getCreatedAt())
                 .modifiedAt(contentEntity.getModifiedAt())
                 .build();
+    }
+
+    private byte[] readContent(Path path) {
+        try (var channel = FileChannel.open(path, StandardOpenOption.READ);
+             var out = new ByteArrayOutputStream()) {
+
+            var readBufferSize = Math.max(1, properties.getBufferSize());
+            if (readBufferSize > channel.size()) {
+                readBufferSize = (int) channel.size();
+            }
+            var buff = ByteBuffer.allocate(readBufferSize);
+
+            while (channel.read(buff) > 0) {
+                out.write(buff.array(), 0, buff.position());
+                buff.clear();
+            }
+
+            return out.toByteArray();
+        } catch (NoSuchFileException e) {
+            throw new ServiceException(404, StorageErrors.NOT_FOUND, "File not found", e);
+        } catch (IOException e) {
+            throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Unexpected error", e);
+        }
     }
 
     @Override
@@ -129,7 +165,8 @@ public class LocalStorageService implements StorageService {
         if (bucket.isReadonly()) {
             throw new ServiceException(403, StorageErrors.BUCKET_READONLY, "Bucket is readonly");
         }
-        var path = getPath(id);
+        var bucketId = bucket.getId();
+        var path = getPath(bucketId, id);
         contentMetaEntityRepository.deleteAllByContentUid(id);
         contentEntityRepository.delete(contentEntity);
         if (Files.notExists(path)) {
@@ -152,6 +189,11 @@ public class LocalStorageService implements StorageService {
         if (bucketEntity.isReadonly()) {
             throw new ServiceException(403, StorageErrors.BUCKET_READONLY, "Bucket is readonly");
         }
+        var storageFormat = properties.getStorageFormat();
+        var storageCodec = storageCodecs.get(storageFormat);
+        if (storageCodec == null) {
+            throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Unsupported storage format: %s".formatted(storageFormat));
+        }
 
         var uid = UUID.randomUUID().toString();
         var entity = ContentEntity.builder()
@@ -173,18 +215,26 @@ public class LocalStorageService implements StorageService {
                 .toList();
         contentMetaEntityRepository.saveAll(metaEntities);
 
-        var path = getPath(uid);
+        var bucketId = bucketEntity.getId();
+        var path = getPath(bucketId, uid);
+        createDirectoriesIfNotExists(path.getParent());
+
+        var encodedContent = storageCodec.encode(content);
         try (var channel = FileChannel.open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-            contentWriter.write(content, channel);
+            var buffer = ByteBuffer.wrap(encodedContent);
+            if (channel.write(buffer) != encodedContent.length) {
+                throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Can't write content");
+            }
         } catch (IOException e) {
-            throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Can't create content");
+            throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Can't create content", e);
         }
 
         return uid;
     }
 
-    private Path getPath(String id) {
-        return Path.of(folder, "%s.data".formatted(id));
+    private Path getPath(long bucketId, String id) {
+        var folder = properties.getFolder();
+        return Path.of(folder, String.valueOf(bucketId), "%s.data".formatted(id));
     }
 
 }
