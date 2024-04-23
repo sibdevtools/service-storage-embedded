@@ -209,6 +209,7 @@ public class LocalStorageService implements StorageService {
                 .uid(uid)
                 .name(name)
                 .bucket(bucketEntity)
+                .storageFormat(storageFormat)
                 .createdAt(ZonedDateTime.now())
                 .modifiedAt(ZonedDateTime.now())
                 .build();
