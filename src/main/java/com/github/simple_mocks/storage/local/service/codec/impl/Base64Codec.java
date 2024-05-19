@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import java.util.Base64;
 
 /**
+ * Base64 codec. Store content in base64 string format
+ *
  * @author sibmaks
  * @since 0.1.0
  */

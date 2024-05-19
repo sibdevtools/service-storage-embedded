@@ -7,6 +7,8 @@ import lombok.*;
 import java.time.ZonedDateTime;
 
 /**
+ * Content database entity
+ *
  * @author sibmaks
  * @since 0.0.1
  */
@@ -25,7 +27,7 @@ public class ContentEntity {
     @Column(name = "name", nullable = false)
     private String name;
     @ManyToOne(optional = false)
-    @JoinColumn(name = "bucket_id")
+    @JoinColumn(name = "bucket_id", nullable = false)
     private BucketEntity bucket;
     @Enumerated(value = EnumType.STRING)
     @Column(name = "storage_format", nullable = false)

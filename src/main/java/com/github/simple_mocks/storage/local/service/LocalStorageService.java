@@ -38,6 +38,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
+ * Local implementation of {@link StorageService}
+ *
  * @author sibmaks
  * @since 0.0.1
  */
@@ -100,7 +102,7 @@ public class LocalStorageService implements StorageService {
     @Override
     public Content get(String id) {
         var contentEntity = contentEntityRepository.findById(id)
-                .orElseThrow(() -> new ServiceException(404, StorageErrors.NOT_FOUND, "Content not found"));
+                .orElseThrow(() -> new ServiceException(404, StorageErrors.CONTENT_NOT_FOUND, "Content not found"));
 
         var storageFormat = contentEntity.getStorageFormat();
         var storageCodec = storageCodecs.get(storageFormat);
@@ -148,7 +150,7 @@ public class LocalStorageService implements StorageService {
 
             return out.toByteArray();
         } catch (NoSuchFileException e) {
-            throw new ServiceException(404, StorageErrors.NOT_FOUND, "File not found", e);
+            throw new ServiceException(404, StorageErrors.CONTENT_NOT_FOUND, "File not found", e);
         } catch (IOException e) {
             throw new ServiceException(StorageErrors.UNEXPECTED_ERROR, "Unexpected error", e);
         }

@@ -5,6 +5,8 @@ import com.github.simple_mocks.storage.local.service.codec.StorageCodec;
 import org.springframework.stereotype.Component;
 
 /**
+ * No operation codec. Store data as is.
+ *
  * @author sibmaks
  * @since 0.1.0
  */

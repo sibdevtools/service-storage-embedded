@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 /**
+ * Content meta information database entity
+ *
  * @author sibmaks
  * @since 0.0.1
  */

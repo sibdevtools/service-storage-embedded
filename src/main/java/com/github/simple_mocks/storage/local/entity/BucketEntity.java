@@ -6,6 +6,8 @@ import lombok.*;
 import java.time.ZonedDateTime;
 
 /**
+ * Bucket database entity
+ *
  * @author sibmaks
  * @since 0.0.1
  */
@@ -26,6 +28,8 @@ public class BucketEntity {
     private String code;
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
+    @Column(name = "modified_at", nullable = false)
+    private ZonedDateTime modifiedAt;
     @Column(name = "readonly", nullable = false)
     private boolean readonly;
 }

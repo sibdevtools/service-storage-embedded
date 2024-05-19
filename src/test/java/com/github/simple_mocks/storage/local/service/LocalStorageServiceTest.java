@@ -100,7 +100,7 @@ class LocalStorageServiceTest {
         var exception = assertThrows(ServiceException.class, () -> service.get(id));
         assertEquals(404, exception.getStatus());
         assertEquals("Content not found", exception.getMessage());
-        assertEquals(StorageErrors.NOT_FOUND, exception.getServiceError());
+        assertEquals(StorageErrors.CONTENT_NOT_FOUND, exception.getServiceError());
     }
 
     @Test
@@ -136,7 +136,7 @@ class LocalStorageServiceTest {
         var exception = assertThrows(ServiceException.class, () -> service.get(id));
         assertEquals(404, exception.getStatus());
         assertEquals("File not found", exception.getMessage());
-        assertEquals(StorageErrors.NOT_FOUND, exception.getServiceError());
+        assertEquals(StorageErrors.CONTENT_NOT_FOUND, exception.getServiceError());
 
         var cause = exception.getCause();
         assertNotNull(cause);

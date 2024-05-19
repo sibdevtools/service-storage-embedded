@@ -13,6 +13,8 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 /**
+ * GZip codec. Store content in a compressed format.
+ *
  * @author sibmaks
  * @since 0.1.0
  */

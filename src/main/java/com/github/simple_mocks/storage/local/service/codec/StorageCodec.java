@@ -3,6 +3,8 @@ package com.github.simple_mocks.storage.local.service.codec;
 import com.github.simple_mocks.storage.local.dto.ContentStorageFormat;
 
 /**
+ * Storage codec interface. Used for encoding/decoding content storage.
+ *
  * @author sibmaks
  * @since 0.1.0
  */
