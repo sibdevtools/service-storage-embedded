@@ -9,7 +9,7 @@ import lombok.*;
  * @author sibmaks
  * @since 0.0.1
  */
-@Entity
+@Entity(name = "storage_service.content_meta")
 @Getter
 @Setter
 @Builder
