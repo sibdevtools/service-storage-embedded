@@ -11,7 +11,7 @@ import java.time.ZonedDateTime;
  * @author sibmaks
  * @since 0.0.1
  */
-@Entity(name = "storage_service.bucket")
+@Entity(name = "storage_service_bucket")
 @Getter
 @Setter
 @Builder
