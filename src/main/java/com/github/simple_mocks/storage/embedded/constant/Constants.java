@@ -1,6 +1,6 @@
 package com.github.simple_mocks.storage.embedded.constant;
 
-import com.github.simple_mocks.error_service.api.ErrorSource;
+import com.github.simple_mocks.error_service.api.dto.ErrorSourceId;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class Constants {
 
-    public static final ErrorSource ERROR_SOURCE = new ErrorSource("STORAGE_SERVICE");
+    public static final ErrorSourceId ERROR_SOURCE = new ErrorSourceId("STORAGE_SERVICE");
 
 }
