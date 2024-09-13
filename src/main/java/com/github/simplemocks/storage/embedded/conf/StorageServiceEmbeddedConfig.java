@@ -1,5 +1,6 @@
 package com.github.simplemocks.storage.embedded.conf;
 
+import com.github.simplemocks.error_service.mutable.api.source.ErrorLocalizationsJsonSource;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.ClassicConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -13,6 +14,16 @@ import javax.sql.DataSource;
  * @author sibmaks
  * @since 0.0.1
  */
+@ErrorLocalizationsJsonSource(
+        systemCode = "STORAGE_SERVICE",
+        iso3Code = "eng",
+        path = "classpath:/embedded/storage/content/errors/eng.json"
+)
+@ErrorLocalizationsJsonSource(
+        systemCode = "STORAGE_SERVICE",
+        iso3Code = "rus",
+        path = "classpath:/embedded/storage/content/errors/rus.json"
+)
 @PropertySource("classpath:embedded-storage-application.properties")
 public class StorageServiceEmbeddedConfig {
 

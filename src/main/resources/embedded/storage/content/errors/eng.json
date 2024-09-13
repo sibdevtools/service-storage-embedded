@@ -1,0 +1,22 @@
+{
+  "BUCKET_NOT_EMPTY": {
+    "title": "Bucket not empty",
+    "description": "Operation not permitted, bucket is not empty"
+  },
+  "BUCKET_NOT_EXISTS": {
+    "title": "Bucket not exists",
+    "description": ""
+  },
+  "BUCKET_READ_ONLY": {
+    "title": "Bucket is read only",
+    "description": "Operation not permitted, bucket is readonly"
+  },
+  "FILE_NOT_FOUND": {
+    "title": "File not found",
+    "description": "Not existed or removed"
+  },
+  "UNEXPECTED_ERROR": {
+    "title": "Unexpected error",
+    "description": "Something went wrong, check logs or call support"
+  }
+}
