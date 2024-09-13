@@ -31,8 +31,10 @@ class StorageBucketServiceEmbeddedIntegrationTest {
             var bucketCode = UUID.randomUUID().toString();
             storageBucketService.create(bucketCode);
 
-            var bucket = storageBucketService.get(bucketCode);
-            assertNotNull(bucket);
+            var bucketRs = storageBucketService.get(bucketCode);
+            assertNotNull(bucketRs);
+
+            var bucket = bucketRs.getBody();
 
             assertEquals(bucketCode, bucket.getCode());
             assertNotNull(bucket.getCreatedAt());

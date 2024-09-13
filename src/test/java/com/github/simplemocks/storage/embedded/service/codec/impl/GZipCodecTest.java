@@ -1,6 +1,6 @@
 package com.github.simplemocks.storage.embedded.service.codec.impl;
 
-import com.github.simple_mocks.error_service.exception.ServiceException;
+import com.github.simplemocks.error_service.exception.ServiceException;
 import com.github.simplemocks.storage.embedded.dto.ContentStorageFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

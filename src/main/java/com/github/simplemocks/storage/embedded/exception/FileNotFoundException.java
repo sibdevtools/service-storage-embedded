@@ -1,6 +1,6 @@
 package com.github.simplemocks.storage.embedded.exception;
 
-import com.github.simple_mocks.error_service.exception.ServiceException;
+import com.github.simplemocks.error_service.exception.ServiceException;
 import com.github.simplemocks.storage.embedded.constant.Constants;
 
 /**

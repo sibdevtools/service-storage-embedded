@@ -1,6 +1,6 @@
 package com.github.simplemocks.storage.embedded.service;
 
-import com.github.simple_mocks.error_service.exception.ServiceException;
+import com.github.simplemocks.error_service.exception.ServiceException;
 import com.github.simplemocks.storage.api.rq.SetReadOnlyModeRq;
 import com.github.simplemocks.storage.embedded.entity.BucketEntity;
 import com.github.simplemocks.storage.embedded.entity.ContentEntity;
@@ -70,7 +70,11 @@ class StorageBucketServiceEmbeddedTest {
         when(contentEntityRepository.findAllByBucket(bucketEntity))
                 .thenReturn(Collections.emptyList());
 
-        var bucket = serviceEmbedded.get(bucketCode);
+        var bucketRs = serviceEmbedded.get(bucketCode);
+        assertNotNull(bucketRs);
+
+        var bucket = bucketRs.getBody();
+        assertNotNull(bucket);
 
         assertEquals(bucketCode, bucket.getCode());
         assertFalse(bucket.isReadOnly());
@@ -244,7 +248,11 @@ class StorageBucketServiceEmbeddedTest {
         when(contentEntityRepository.findAllByBucket(bucketEntity))
                 .thenReturn(List.of(contentEntity));
 
-        var bucket = serviceEmbedded.get(bucketCode);
+        var bucketRs = serviceEmbedded.get(bucketCode);
+        assertNotNull(bucketRs);
+
+        var bucket = bucketRs.getBody();
+        assertNotNull(bucket);
 
         assertEquals(bucketCode, bucket.getCode());
         assertFalse(bucket.isReadOnly());

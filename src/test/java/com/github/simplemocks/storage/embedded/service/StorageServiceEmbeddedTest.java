@@ -1,6 +1,6 @@
 package com.github.simplemocks.storage.embedded.service;
 
-import com.github.simple_mocks.error_service.exception.ServiceException;
+import com.github.simplemocks.error_service.exception.ServiceException;
 import com.github.simplemocks.storage.api.rq.SaveFileRq;
 import com.github.simplemocks.storage.embedded.WhiteBox;
 import com.github.simplemocks.storage.embedded.conf.StorageServiceEmbeddedProperties;
@@ -252,7 +252,10 @@ class StorageServiceEmbeddedTest {
         when(contentMetaEntity.getValue())
                 .thenReturn(contentMetaEntityValue);
 
-        var actualContent = service.get(id);
+        var actualContentRs = service.get(id);
+        assertNotNull(actualContentRs);
+
+        var actualContent = actualContentRs.getBody();
         assertNotNull(actualContent);
 
         var actualDescription = actualContent.getDescription();
@@ -313,7 +316,10 @@ class StorageServiceEmbeddedTest {
         when(contentMetaEntity.getValue())
                 .thenReturn(contentMetaEntityValue);
 
-        var actualDescription = service.getDescription(id);
+        var actualDescriptionRs = service.getDescription(id);
+        assertNotNull(actualDescriptionRs);
+
+        var actualDescription = actualDescriptionRs.getBody();
         assertNotNull(actualDescription);
 
         assertEquals(contentEntityUid, actualDescription.getId());
@@ -565,7 +571,10 @@ class StorageServiceEmbeddedTest {
                 .data(content)
                 .build();
 
-        var contentUid = service.save(rq);
+        var contentUidRs = service.save(rq);
+        assertNotNull(contentUidRs);
+
+        var contentUid = contentUidRs.getBody();
         assertNotNull(contentUid);
 
         var contentEntityArgumentCaptor = ArgumentCaptor.forClass(ContentEntity.class);

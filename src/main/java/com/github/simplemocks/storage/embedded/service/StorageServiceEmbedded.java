@@ -1,8 +1,10 @@
 package com.github.simplemocks.storage.embedded.service;
 
-import com.github.simplemocks.storage.api.dto.BucketFile;
-import com.github.simplemocks.storage.api.dto.BucketFileDescription;
+import com.github.simplemocks.common.api.rs.StandardRs;
 import com.github.simplemocks.storage.api.rq.SaveFileRq;
+import com.github.simplemocks.storage.api.rs.GetBucketFileDescriptionRs;
+import com.github.simplemocks.storage.api.rs.GetBucketFileRs;
+import com.github.simplemocks.storage.api.rs.SaveFileRs;
 import com.github.simplemocks.storage.api.service.StorageService;
 import com.github.simplemocks.storage.embedded.conf.StorageServiceEmbeddedCondition;
 import com.github.simplemocks.storage.embedded.conf.StorageServiceEmbeddedProperties;
@@ -106,7 +108,7 @@ public class StorageServiceEmbedded implements StorageService {
 
     @Override
     @Nonnull
-    public BucketFile get(@Nonnull String id) {
+    public GetBucketFileRs get(@Nonnull String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElseThrow(() -> new FileNotFoundException("Content not found"));
 
@@ -122,11 +124,7 @@ public class StorageServiceEmbedded implements StorageService {
         var content = readContent(path);
         var decodedContent = storageCodec.decode(content);
 
-        var meta = contentMetaEntityRepository.findAllByContentUid(id)
-                .stream()
-                .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getValue));
-
-        var bucketMeta = new BucketFileMetadataImpl(meta);
+        var bucketMeta = getBucketFileMetadata(id);
 
         var description = BucketFileDescriptionImpl.builder()
                 .id(contentEntity.getUid())
@@ -136,31 +134,38 @@ public class StorageServiceEmbedded implements StorageService {
                 .modifiedAt(contentEntity.getModifiedAt())
                 .build();
 
-        return BucketFileImpl.builder()
+        var bucketFile = BucketFileImpl.builder()
                 .description(description)
                 .data(decodedContent)
                 .build();
+        return new GetBucketFileRs(bucketFile);
     }
 
-    @Nonnull
-    @Override
-    public BucketFileDescription getDescription(@Nonnull String id) {
-        var contentEntity = contentEntityRepository.findById(id)
-                .orElseThrow(() -> new FileNotFoundException("Content not found"));
-
+    private BucketFileMetadataImpl getBucketFileMetadata(String id) {
         var meta = contentMetaEntityRepository.findAllByContentUid(id)
                 .stream()
                 .collect(Collectors.toMap(ContentMetaEntity::getKey, ContentMetaEntity::getValue));
 
         var bucketMeta = new BucketFileMetadataImpl(meta);
+        return bucketMeta;
+    }
 
-        return BucketFileDescriptionImpl.builder()
+    @Nonnull
+    @Override
+    public GetBucketFileDescriptionRs getDescription(@Nonnull String id) {
+        var contentEntity = contentEntityRepository.findById(id)
+                .orElseThrow(() -> new FileNotFoundException("Content not found"));
+
+        var bucketMeta = getBucketFileMetadata(id);
+
+        var bucketFileDescription = BucketFileDescriptionImpl.builder()
                 .id(contentEntity.getUid())
                 .name(contentEntity.getName())
                 .meta(bucketMeta)
                 .createdAt(contentEntity.getCreatedAt())
                 .modifiedAt(contentEntity.getModifiedAt())
                 .build();
+        return new GetBucketFileDescriptionRs(bucketFileDescription);
     }
 
     private byte[] readContent(Path path) {
@@ -186,16 +191,17 @@ public class StorageServiceEmbedded implements StorageService {
         }
     }
 
+    @Nonnull
     @Override
     @Transactional(
             isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRES_NEW
     )
-    public void delete(@Nonnull String id) {
+    public StandardRs delete(@Nonnull String id) {
         var contentEntity = contentEntityRepository.findById(id)
                 .orElse(null);
         if (contentEntity == null) {
-            return;
+            return new StandardRs();
         }
         var bucket = contentEntity.getBucket();
         if (bucket.isReadonly()) {
@@ -206,7 +212,7 @@ public class StorageServiceEmbedded implements StorageService {
         contentMetaEntityRepository.deleteAllByContentUid(id);
         contentEntityRepository.delete(contentEntity);
         if (Files.notExists(path)) {
-            return;
+            return new StandardRs();
         }
         // Maybe better do it by scheduler or via async tasks
         try {
@@ -214,6 +220,7 @@ public class StorageServiceEmbedded implements StorageService {
         } catch (IOException e) {
             throw new UnexpectedErrorException("Can't delete file");
         }
+        return new StandardRs();
     }
 
     @Override
@@ -222,7 +229,7 @@ public class StorageServiceEmbedded implements StorageService {
             propagation = Propagation.REQUIRES_NEW
     )
     @Nonnull
-    public String save(@Nonnull SaveFileRq rq) {
+    public SaveFileRs save(@Nonnull SaveFileRq rq) {
         var bucket = rq.bucket();
 
         var bucketEntity = bucketEntityRepository.findByCode(bucket)
@@ -275,7 +282,7 @@ public class StorageServiceEmbedded implements StorageService {
             throw new UnexpectedErrorException("Can't create content", e);
         }
 
-        return uid;
+        return new SaveFileRs(uid);
     }
 
     private Path getPath(long bucketId, String id) {

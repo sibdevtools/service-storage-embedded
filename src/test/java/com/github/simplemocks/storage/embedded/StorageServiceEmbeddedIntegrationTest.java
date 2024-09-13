@@ -42,7 +42,7 @@ class StorageServiceEmbeddedIntegrationTest {
             var metaValue = UUID.randomUUID().toString();
             byte[] data = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
 
-            var fileId = storageService.save(
+            var saveFileRs = storageService.save(
                     SaveFileRq.builder()
                             .bucket(bucket)
                             .name(name)
@@ -51,10 +51,15 @@ class StorageServiceEmbeddedIntegrationTest {
                             .build()
             );
 
+            assertNotNull(saveFileRs);
+
+            var fileId = saveFileRs.getBody();
             assertNotNull(fileId);
 
-            var bucketFile = storageService.get(fileId);
-            assertNotNull(bucketFile);
+            var bucketFileRs = storageService.get(fileId);
+            assertNotNull(bucketFileRs);
+
+            var bucketFile = bucketFileRs.getBody();
 
             assertArrayEquals(data, bucketFile.getData());
 
@@ -70,14 +75,16 @@ class StorageServiceEmbeddedIntegrationTest {
 
             assertEquals(metaValue, meta.get(metaKey));
 
-            description = storageService.getDescription(fileId);
-            assertNotNull(description);
+            var descriptionRs = storageService.getDescription(fileId);
+            assertNotNull(descriptionRs);
 
-            assertEquals(name, description.getName());
-            assertNotNull(description.getCreatedAt());
-            assertNotNull(description.getModifiedAt());
+            var descriptionRsBody = descriptionRs.getBody();
 
-            meta = description.getMeta();
+            assertEquals(name, descriptionRsBody.getName());
+            assertNotNull(descriptionRsBody.getCreatedAt());
+            assertNotNull(descriptionRsBody.getModifiedAt());
+
+            meta = descriptionRsBody.getMeta();
             assertNotNull(meta);
 
             assertEquals(metaValue, meta.get(metaKey));

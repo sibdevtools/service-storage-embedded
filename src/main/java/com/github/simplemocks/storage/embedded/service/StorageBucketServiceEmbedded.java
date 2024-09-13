@@ -1,8 +1,9 @@
 package com.github.simplemocks.storage.embedded.service;
 
-import com.github.simplemocks.storage.api.dto.Bucket;
+import com.github.simplemocks.common.api.rs.StandardRs;
 import com.github.simplemocks.storage.api.dto.BucketFileDescription;
 import com.github.simplemocks.storage.api.rq.SetReadOnlyModeRq;
+import com.github.simplemocks.storage.api.rs.GetBucketRs;
 import com.github.simplemocks.storage.api.service.StorageBucketService;
 import com.github.simplemocks.storage.embedded.conf.StorageServiceEmbeddedCondition;
 import com.github.simplemocks.storage.embedded.dto.BucketFileDescriptionImpl;
@@ -54,20 +55,22 @@ public class StorageBucketServiceEmbedded implements StorageBucketService {
         this.contentMetaEntityRepository = contentMetaEntityRepository;
     }
 
+    @Nonnull
     @Override
-    public void create(@Nonnull String bucket) {
+    public StandardRs create(@Nonnull String bucket) {
         var bucketEntity = BucketEntity.builder()
                 .code(bucket)
                 .createdAt(ZonedDateTime.now())
                 .modifiedAt(ZonedDateTime.now())
                 .build();
         bucketEntityRepository.save(bucketEntity);
+        return new StandardRs();
     }
 
     @Nonnull
     @Override
-    public Bucket get(@Nonnull String bucket) {
-        return bucketEntityRepository.findByCode(bucket)
+    public GetBucketRs get(@Nonnull String bucketCode) {
+        var bucket = bucketEntityRepository.findByCode(bucketCode)
                 .map(it -> BucketImpl.builder()
                         .code(it.getCode())
                         .createdAt(it.getCreatedAt())
@@ -76,6 +79,7 @@ public class StorageBucketServiceEmbedded implements StorageBucketService {
                         .contents(buildBucketContents(it))
                         .build())
                 .orElseThrow(() -> new BucketNotExistsException("Bucket does not exists"));
+        return new GetBucketRs(bucket);
     }
 
     private List<BucketFileDescription> buildBucketContents(BucketEntity bucketEntity) {
@@ -103,11 +107,12 @@ public class StorageBucketServiceEmbedded implements StorageBucketService {
                 .build();
     }
 
+    @Nonnull
     @Override
     @Transactional(
             propagation = Propagation.REQUIRES_NEW
     )
-    public void setReadOnly(@Nonnull SetReadOnlyModeRq rq) {
+    public StandardRs setReadOnly(@Nonnull SetReadOnlyModeRq rq) {
         var bucket = rq.code();
         var readOnly = rq.readOnly();
 
@@ -115,24 +120,26 @@ public class StorageBucketServiceEmbedded implements StorageBucketService {
                 .orElseThrow(() -> new BucketNotExistsException("Bucket does not exists"));
 
         if (bucketEntity.isReadonly() == readOnly) {
-            return;
+            return new StandardRs();
         }
 
         bucketEntity.setReadonly(readOnly);
         bucketEntity.setModifiedAt(ZonedDateTime.now());
 
         bucketEntityRepository.save(bucketEntity);
+        return new StandardRs();
     }
 
+    @Nonnull
     @Override
     @Transactional(
             propagation = Propagation.REQUIRES_NEW
     )
-    public void delete(@Nonnull String bucket) {
+    public StandardRs delete(@Nonnull String bucket) {
         var optionalBucketEntity = bucketEntityRepository.findByCode(bucket);
 
         if (optionalBucketEntity.isEmpty()) {
-            return;
+            return new StandardRs();
         }
 
         var bucketEntity = optionalBucketEntity.get();
@@ -142,5 +149,6 @@ public class StorageBucketServiceEmbedded implements StorageBucketService {
         }
 
         bucketEntityRepository.delete(bucketEntity);
+        return new StandardRs();
     }
 }
