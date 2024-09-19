@@ -24,6 +24,6 @@ public class BucketFileMetadataImpl implements BucketFileMetadata {
 
     @Override
     public Set<String> getAttributeNames() {
-        return new HashSet<>(meta.values());
+        return new HashSet<>(meta.keySet());
     }
 }
