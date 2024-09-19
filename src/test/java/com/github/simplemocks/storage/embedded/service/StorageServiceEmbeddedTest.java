@@ -1,6 +1,5 @@
 package com.github.simplemocks.storage.embedded.service;
 
-import com.github.simplemocks.error_service.exception.ServiceException;
 import com.github.simplemocks.storage.api.rq.SaveFileRq;
 import com.github.simplemocks.storage.embedded.WhiteBox;
 import com.github.simplemocks.storage.embedded.conf.StorageServiceEmbeddedProperties;
@@ -16,21 +15,16 @@ import com.github.simplemocks.storage.embedded.repository.BucketEntityRepository
 import com.github.simplemocks.storage.embedded.repository.ContentEntityRepository;
 import com.github.simplemocks.storage.embedded.repository.ContentMetaEntityRepository;
 import com.github.simplemocks.storage.embedded.service.codec.StorageCodec;
-import org.apache.commons.lang3.StringUtils;
+import com.github.simplemocks.storage.embedded.service.storage.StorageContainer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.time.ZonedDateTime;
 import java.util.*;
 
@@ -51,55 +45,23 @@ class StorageServiceEmbeddedTest {
     @Mock
     private ContentMetaEntityRepository contentMetaEntityRepository;
     @Mock
-    private List<StorageCodec> storageCodecs;
+    private Map<ContentStorageFormat, StorageCodec> storageCodecs;
     @Mock
     private StorageServiceEmbeddedProperties properties;
-    @InjectMocks
+    @Mock
+    private Map<String, StorageContainer> storageContainers;
     private StorageServiceEmbedded service;
 
-    @Test
-    void testSetUpWhenFolderExistsAsFile() {
-        var folder = Objects.requireNonNull(StorageServiceEmbeddedTest.class.getResource("/samples/1/mock.data")).getPath();
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.setUp()
+    @BeforeEach
+    void setUp() {
+        service = new StorageServiceEmbedded(
+                bucketEntityRepository,
+                contentEntityRepository,
+                contentMetaEntityRepository,
+                storageCodecs,
+                properties,
+                storageContainers
         );
-        assertEquals("Path: '%s' exists and is not directory".formatted(folder), exception.getMessage());
-    }
-
-    @Test
-    void testSetUpWhenFolderExists() {
-        var folder = Objects.requireNonNull(StorageServiceEmbeddedTest.class.getResource("/samples")).getPath();
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
-        try {
-            service.setUp();
-        } catch (Exception e) {
-            fail(e);
-        }
-    }
-
-    @Test
-    void testSetUpWhenDirectoryCanNotBeCreated() {
-        var folder = StringUtils.repeat('-', 1024);
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
-        var exception = assertThrows(
-                ServiceException.class,
-                () -> service.setUp()
-        );
-
-        assertEquals(503, exception.getStatus());
-        assertEquals("Can't create dirs: " + folder, exception.getMessage());
-        assertEquals("UNEXPECTED_ERROR", exception.getCode());
     }
 
     @Test
@@ -116,51 +78,6 @@ class StorageServiceEmbeddedTest {
         assertEquals(404, exception.getStatus());
         assertEquals("Content not found", exception.getMessage());
         assertEquals("FILE_NOT_FOUND", exception.getCode());
-    }
-
-    @Test
-    void testGetContentWhenFileNotExists() {
-        var folder = UUID.randomUUID().toString();
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
-        var storageFormat = mock(ContentStorageFormat.class);
-        var storageCodec = mock(StorageCodec.class);
-        var storageCodecs = Map.of(
-                storageFormat, storageCodec
-        );
-        WhiteBox.set(service, "storageCodecs", storageCodecs);
-
-        var id = UUID.randomUUID().toString();
-        var content = mock(ContentEntity.class);
-        when(contentEntityRepository.findById(id))
-                .thenReturn(Optional.of(content));
-
-        when(content.getStorageFormat())
-                .thenReturn(storageFormat);
-
-        var bucketEntity = mock(BucketEntity.class);
-        when(content.getBucket())
-                .thenReturn(bucketEntity);
-
-        var bucketId = UUID.randomUUID().getLeastSignificantBits();
-        when(bucketEntity.getId())
-                .thenReturn(bucketId);
-
-        var exception = assertThrows(
-                FileNotFoundException.class,
-                () -> service.get(id)
-        );
-
-        assertEquals(404, exception.getStatus());
-        assertEquals("File not found", exception.getMessage());
-        assertEquals("FILE_NOT_FOUND", exception.getCode());
-
-        var cause = exception.getCause();
-        assertNotNull(cause);
-
-        assertInstanceOf(NoSuchFileException.class, cause);
     }
 
     @Test
@@ -186,17 +103,8 @@ class StorageServiceEmbeddedTest {
         assertEquals("UNEXPECTED_ERROR", exception.getCode());
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = {0, 1, 32, 1024})
-    void testGet(int bufferSize) {
-        var folder = Objects.requireNonNull(StorageServiceEmbeddedTest.class.getResource("/samples")).getPath();
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
-        when(properties.getBufferSize())
-                .thenReturn(bufferSize);
-
+    @Test
+    void testGet() {
         var storageFormat = mock(ContentStorageFormat.class);
         var storageCodec = mock(StorageCodec.class);
         var storageCodecs = Map.of(
@@ -251,6 +159,14 @@ class StorageServiceEmbeddedTest {
         var contentMetaEntityValue = UUID.randomUUID().toString();
         when(contentMetaEntity.getValue())
                 .thenReturn(contentMetaEntityValue);
+
+        var storageContainerType = UUID.randomUUID().toString();
+        when(properties.getDefaultStorageContainer())
+                .thenReturn(storageContainerType);
+
+        var storageContainer = mock(StorageContainer.class);
+        when(storageContainers.get(storageContainerType))
+                .thenReturn(storageContainer);
 
         var actualContentRs = service.get(id);
         assertNotNull(actualContentRs);
@@ -372,11 +288,6 @@ class StorageServiceEmbeddedTest {
 
     @Test
     void testDeleteWhenPhysicallyRemoved() {
-        var folder = UUID.randomUUID().toString();
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
         var id = UUID.randomUUID().toString();
         var contentEntity = mock(ContentEntity.class);
         when(contentEntityRepository.findById(id))
@@ -388,6 +299,14 @@ class StorageServiceEmbeddedTest {
 
         when(bucketEntity.isReadonly())
                 .thenReturn(false);
+
+        var storageContainerType = UUID.randomUUID().toString();
+        when(properties.getDefaultStorageContainer())
+                .thenReturn(storageContainerType);
+
+        var storageContainer = mock(StorageContainer.class);
+        when(storageContainers.get(storageContainerType))
+                .thenReturn(storageContainer);
 
         service.delete(id);
 
@@ -400,26 +319,7 @@ class StorageServiceEmbeddedTest {
 
     @Test
     void testDelete() throws IOException {
-        var tmpDirectory = Files.createTempDirectory(UUID.randomUUID().toString());
-
         var id = UUID.randomUUID().toString();
-        var bucketId = Math.absExact(UUID.randomUUID().hashCode());
-        var bucketDir = Files.createDirectory(
-                tmpDirectory
-                        .resolve(String.valueOf(bucketId))
-        );
-        var tmpFile = Files.createFile(
-                bucketDir
-                        .resolve(id + ".data")
-        );
-        try (var writer = new FileOutputStream(tmpFile.toFile())) {
-            writer.write(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
-        }
-        var folder = tmpDirectory.toAbsolutePath().toString();
-
-        when(properties.getFolder())
-                .thenReturn(folder);
-
         var contentEntity = mock(ContentEntity.class);
         when(contentEntityRepository.findById(id))
                 .thenReturn(Optional.of(contentEntity));
@@ -428,11 +328,20 @@ class StorageServiceEmbeddedTest {
         when(contentEntity.getBucket())
                 .thenReturn(bucketEntity);
 
+        var bucketId = Math.absExact(UUID.randomUUID().hashCode());
         when(bucketEntity.getId())
                 .thenReturn((long) bucketId);
 
         when(bucketEntity.isReadonly())
                 .thenReturn(false);
+
+        var storageContainerType = UUID.randomUUID().toString();
+        when(properties.getDefaultStorageContainer())
+                .thenReturn(storageContainerType);
+
+        var storageContainer = mock(StorageContainer.class);
+        when(storageContainers.get(storageContainerType))
+                .thenReturn(storageContainer);
 
         service.delete(id);
 
@@ -442,7 +351,8 @@ class StorageServiceEmbeddedTest {
         verify(contentEntityRepository)
                 .delete(contentEntity);
 
-        assertTrue(Files.notExists(tmpFile));
+        verify(storageContainer)
+                .delete(bucketId, id);
     }
 
     @Test
@@ -529,12 +439,7 @@ class StorageServiceEmbeddedTest {
     }
 
     @Test
-    void testCreate() throws IOException {
-        var folder = Files.createTempDirectory(UUID.randomUUID().toString());
-
-        when(properties.getFolder())
-                .thenReturn(folder.toAbsolutePath().toString());
-
+    void testCreate() {
         var storageFormat = mock(ContentStorageFormat.class);
         var storageCodec = mock(StorageCodec.class);
         var storageCodecs = Map.of(
@@ -570,6 +475,14 @@ class StorageServiceEmbeddedTest {
                 .meta(meta)
                 .data(content)
                 .build();
+
+        var storageContainerType = UUID.randomUUID().toString();
+        when(properties.getDefaultStorageContainer())
+                .thenReturn(storageContainerType);
+
+        var storageContainer = mock(StorageContainer.class);
+        when(storageContainers.get(storageContainerType))
+                .thenReturn(storageContainer);
 
         var contentUidRs = service.save(rq);
         assertNotNull(contentUidRs);
