@@ -1,6 +1,9 @@
 package com.github.simplemocks.storage.embedded.conf;
 
 import com.github.simplemocks.error_service.mutable.api.source.ErrorLocalizationsJsonSource;
+import com.github.simplemocks.storage.embedded.dto.ContentStorageFormat;
+import com.github.simplemocks.storage.embedded.service.codec.StorageCodec;
+import com.github.simplemocks.storage.embedded.service.storage.StorageContainer;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.ClassicConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -9,6 +12,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.PropertySource;
 
 import javax.sql.DataSource;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @author sibmaks
@@ -40,5 +47,21 @@ public class StorageServiceEmbeddedConfig {
         var flyway = new Flyway(configuration);
         flyway.migrate();
         return flyway;
+    }
+
+    @Bean("storageContainerMap")
+    public Map<String, StorageContainer> storageContainerMap(
+            List<StorageContainer> storageContainers
+    ) {
+        return storageContainers.stream()
+                .collect(Collectors.toMap(StorageContainer::getType, Function.identity()));
+    }
+
+    @Bean("storageCodecsMap")
+    public Map<ContentStorageFormat, StorageCodec> storageCodecsMap(
+            List<StorageCodec> storageCodecs
+    ) {
+        return storageCodecs.stream()
+                .collect(Collectors.toMap(StorageCodec::getFormat, Function.identity()));
     }
 }

@@ -22,4 +22,5 @@ public class StorageServiceEmbeddedProperties {
     private String folder = "data";
     private int bufferSize = 1024;
     private ContentStorageFormat storageFormat = ContentStorageFormat.GZIP;
+    private String defaultStorageContainer = "FILE";
 }
