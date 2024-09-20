@@ -52,7 +52,7 @@ class StorageBucketServiceEmbeddedTest {
         serviceEmbedded.create(bucketCode);
 
         verify(bucketEntityRepository)
-                .save(any(BucketEntity.class));
+                .saveIfNotExists(bucketCode);
     }
 
     @Test

@@ -2,6 +2,9 @@ package com.github.simplemocks.storage.embedded.repository;
 
 import com.github.simplemocks.storage.embedded.entity.BucketEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -17,4 +20,22 @@ public interface BucketEntityRepository extends JpaRepository<BucketEntity, Long
      * @return the entity with the given id or {@literal Optional#empty()} if none found.
      */
     Optional<BucketEntity> findByCode(String code);
+
+
+    /**
+     * Create a bucket if not exists.
+     *
+     * @param bucketCode bucket code
+     */
+    @Modifying
+    @Query(
+            value = "INSERT INTO storage_service.bucket (code, created_at, modified_at, readonly) " +
+                    "SELECT :bucketCode, current_timestamp, current_timestamp, false WHERE NOT EXISTS(" +
+                    "SELECT 1 FROM storage_service.bucket WHERE code = :bucketCode" +
+                    ")",
+            nativeQuery = true
+    )
+    void saveIfNotExists(
+            @Param("bucketCode") String bucketCode
+    );
 }

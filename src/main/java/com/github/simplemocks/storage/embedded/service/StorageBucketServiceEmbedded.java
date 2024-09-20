@@ -57,13 +57,11 @@ public class StorageBucketServiceEmbedded implements StorageBucketService {
 
     @Nonnull
     @Override
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW
+    )
     public StandardRs create(@Nonnull String bucket) {
-        var bucketEntity = BucketEntity.builder()
-                .code(bucket)
-                .createdAt(ZonedDateTime.now())
-                .modifiedAt(ZonedDateTime.now())
-                .build();
-        bucketEntityRepository.save(bucketEntity);
+        bucketEntityRepository.saveIfNotExists(bucket);
         return new StandardRs();
     }
 
