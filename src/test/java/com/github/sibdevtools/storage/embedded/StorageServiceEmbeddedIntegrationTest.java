@@ -5,11 +5,7 @@ import com.github.sibdevtools.storage.api.service.StorageBucketService;
 import com.github.sibdevtools.storage.api.service.StorageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.nio.charset.StandardCharsets;
@@ -24,78 +20,68 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @ActiveProfiles("startup-test")
 @SpringBootTest
-@EntityScan
-@EnableJpaRepositories
-@ConfigurationPropertiesScan("com.github.sibdevtools.storage.embedded.conf")
 class StorageServiceEmbeddedIntegrationTest {
     @Autowired
-    private ConfigurableApplicationContext context;
+    private StorageBucketService storageBucketService;
+    @Autowired
+    private StorageService storageService;
 
     @Test
     void testSaveAndGet() {
-//        try (var context = SpringApplication.run(StorageServiceEmbeddedIntegrationTest.class)) {
-//            assertNotNull(context);
+        var bucket = UUID.randomUUID().toString();
+        storageBucketService.create(bucket);
 
-            var storageBucketService = context.getBean(StorageBucketService.class);
-            assertNotNull(storageBucketService);
+        var name = UUID.randomUUID().toString();
 
-            var bucket = UUID.randomUUID().toString();
-            storageBucketService.create(bucket);
+        var metaKey = UUID.randomUUID().toString();
+        var metaValue = UUID.randomUUID().toString();
+        byte[] data = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
 
-            var storageService = context.getBean(StorageService.class);
+        var saveFileRs = storageService.save(
+                SaveFileRq.builder()
+                        .bucket(bucket)
+                        .name(name)
+                        .meta(Map.of(metaKey, metaValue))
+                        .data(data)
+                        .build()
+        );
 
-            var name = UUID.randomUUID().toString();
+        assertNotNull(saveFileRs);
 
-            var metaKey = UUID.randomUUID().toString();
-            var metaValue = UUID.randomUUID().toString();
-            byte[] data = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+        var fileId = saveFileRs.getBody();
+        assertNotNull(fileId);
 
-            var saveFileRs = storageService.save(
-                    SaveFileRq.builder()
-                            .bucket(bucket)
-                            .name(name)
-                            .meta(Map.of(metaKey, metaValue))
-                            .data(data)
-                            .build()
-            );
+        var bucketFileRs = storageService.get(fileId);
+        assertNotNull(bucketFileRs);
 
-            assertNotNull(saveFileRs);
+        var bucketFile = bucketFileRs.getBody();
 
-            var fileId = saveFileRs.getBody();
-            assertNotNull(fileId);
+        assertArrayEquals(data, bucketFile.getData());
 
-            var bucketFileRs = storageService.get(fileId);
-            assertNotNull(bucketFileRs);
+        var description = bucketFile.getDescription();
+        assertNotNull(description);
 
-            var bucketFile = bucketFileRs.getBody();
+        assertEquals(name, description.getName());
+        assertNotNull(description.getCreatedAt());
+        assertNotNull(description.getModifiedAt());
 
-            assertArrayEquals(data, bucketFile.getData());
+        var meta = description.getMeta();
+        assertNotNull(meta);
 
-            var description = bucketFile.getDescription();
-            assertNotNull(description);
+        assertEquals(metaValue, meta.get(metaKey));
 
-            assertEquals(name, description.getName());
-            assertNotNull(description.getCreatedAt());
-            assertNotNull(description.getModifiedAt());
+        var descriptionRs = storageService.getDescription(fileId);
+        assertNotNull(descriptionRs);
 
-            var meta = description.getMeta();
-            assertNotNull(meta);
+        var descriptionRsBody = descriptionRs.getBody();
 
-            assertEquals(metaValue, meta.get(metaKey));
+        assertEquals(name, descriptionRsBody.getName());
+        assertNotNull(descriptionRsBody.getCreatedAt());
+        assertNotNull(descriptionRsBody.getModifiedAt());
 
-            var descriptionRs = storageService.getDescription(fileId);
-            assertNotNull(descriptionRs);
+        meta = descriptionRsBody.getMeta();
+        assertNotNull(meta);
 
-            var descriptionRsBody = descriptionRs.getBody();
-
-            assertEquals(name, descriptionRsBody.getName());
-            assertNotNull(descriptionRsBody.getCreatedAt());
-            assertNotNull(descriptionRsBody.getModifiedAt());
-
-            meta = descriptionRsBody.getMeta();
-            assertNotNull(meta);
-
-            assertEquals(metaValue, meta.get(metaKey));
-        }
-//    }
+        assertEquals(metaValue, meta.get(metaKey));
+    }
 }

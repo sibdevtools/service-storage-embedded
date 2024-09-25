@@ -7,7 +7,7 @@ import com.github.sibdevtools.storage.embedded.service.storage.StorageContainer;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
@@ -33,9 +33,8 @@ import java.util.stream.Collectors;
         path = "classpath:/embedded/storage/content/errors/rus.json"
 )
 @Configuration
-@EnableConfigurationProperties
-@PropertySource("classpath:/embedded/storage/application.yaml")
-//@ConditionalOnProperty(name = "service.storage.mode", havingValue = "EMBEDDED")
+@PropertySource("classpath:/embedded/storage/application.properties")
+@ConditionalOnProperty(name = "service.storage.mode", havingValue = "EMBEDDED")
 public class StorageServiceEmbeddedConfig {
 
     @Bean
