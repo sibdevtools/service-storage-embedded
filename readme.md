@@ -1,4 +1,4 @@
-# Simple Mock - Storage Service Embedded
+# SibDevTools - Storage Service Embedded
 
 ## To build
 
