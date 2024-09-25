@@ -56,9 +56,9 @@ public class StorageServiceEmbeddedConfig {
 
     @Bean
     public MigrateResult embeddedStorageFlywayMigrateResult(
-            @Qualifier("embeddedStorageFlyway") Flyway embeddedStorageFlyway
+            @Qualifier("embeddedStorageFlyway") Flyway flyway
     ) {
-        return embeddedStorageFlyway.migrate();
+        return flyway.migrate();
     }
 
     @Bean("storageContainerMap")
