@@ -1,12 +1,14 @@
 name: Publish package to GitHub Packages
+
 on:
   release:
-    types: [ created ]
+    types: [ published ]
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -21,15 +23,27 @@ jobs:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
+      - name: Extract Version Number
+        run: |
+          echo "Extracting version from tag..."
+          VERSION=${GITHUB_REF##*/}
+          VERSION=${VERSION#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: Make gradlew executable
         run: chmod +x gradlew
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
       - name: Publish package
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: publish
+        run: ./gradlew publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+      - name: Store distribution packages
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/libs/*${{ env.VERSION }}.jar
+            build/libs/*${{ env.VERSION }}-javadoc.jar
+            build/libs/*${{ env.VERSION }}-sources.jar
